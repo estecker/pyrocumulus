@@ -159,6 +159,9 @@ func GetUnTagged(ctx context.Context, api *datadogV1.UsageMeteringApi, tagBreakd
 }
 
 // Compared to last month: How are you doing?
+// Used product both months: calculated in for loop
+// Used only last: never calculated in for loop
+// Used only this month: x/0 = infinity
 func GetUsageBillableSummary(ctx context.Context, api *datadogV1.UsageMeteringApi) string {
 	var sb strings.Builder
 	tw := tabwriter.NewWriter(&sb, 0, 0, 1, ' ', 0)
@@ -169,9 +172,14 @@ func GetUsageBillableSummary(ctx context.Context, api *datadogV1.UsageMeteringAp
 		fmt.Fprintf(&sb, "Datadog: Percentage difference of usage for %s between last month and this month. ", org)
 		fmt.Fprintf(&sb, "Current month of %s is %d%% complete.", time.Now().Month().String(), common.PercentageOfMonth())
 		fmt.Fprintf(tw, "%s", "```\n")
+		var percentDiff float64
 		for key, usage := range usageKey {
 			var stat string
-			percentDiff := float64(usage.AccountBillableUsage) / float64(lm[org][key].AccountBillableUsage) * 100
+			if lm[org][key].AccountBillableUsage == 0 { // Used only this month
+				percentDiff = float64(usage.AccountBillableUsage) * 100
+			} else {
+				percentDiff = float64(usage.AccountBillableUsage) / float64(lm[org][key].AccountBillableUsage) * 100
+			}
 			if int(percentDiff) <= common.PercentageOfMonth() {
 				stat = "🥳"
 			} else {
